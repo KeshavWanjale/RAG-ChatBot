@@ -1,12 +1,14 @@
 import os
+import streamlit as st
 import google.generativeai as genai
 from dotenv import load_dotenv
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 
-
+# Load environment variables
 load_dotenv()
 
+# Function to generate answers using Generative AI
 def generate_answer(prompt):
     try:
         genai.configure(api_key=os.getenv("GEMEINI_API_KEY"))
@@ -16,6 +18,7 @@ def generate_answer(prompt):
     except Exception as e:
         return f"Error generating answer: {e}"
 
+# Function to retrieve relevant context from the database
 def get_relevant_context_from_db(query):
     try:
         embedding_function = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
@@ -26,6 +29,7 @@ def get_relevant_context_from_db(query):
     except Exception as e:
         return f"Error fetching context: {e}"
 
+# Function to generate the RAG prompt
 def generate_rag_prompt(query, context):
     escaped = context.replace("'", "").replace('"', "").replace("\n", " ")
     prompt = f"""
@@ -41,12 +45,25 @@ def generate_rag_prompt(query, context):
     """
     return prompt
 
-while True:
-    print("-----------------------------------------------------------------------\n")
-    query = input("Query (type 'exit' to quit): ")
-    if query.lower() == 'exit':
-        break
-    context = get_relevant_context_from_db(query)
-    prompt = generate_rag_prompt(query, context)
-    answer = generate_answer(prompt)
-    print(answer)
+# Streamlit App
+st.title("Interactive Chatbot with RAG and Generative AI")
+st.write("Enter your query below, and the chatbot will generate an answer using relevant context.")
+
+# Input query
+query = st.text_input("Your Query:", "")
+
+if st.button("Submit"):
+    if query.strip() == "":
+        st.warning("Please enter a valid query.")
+    else:
+        # Fetch context and generate prompt
+        with st.spinner("Fetching relevant context..."):
+            context = get_relevant_context_from_db(query)
+        with st.spinner("Generating response..."):
+            prompt = generate_rag_prompt(query, context)
+            answer = generate_answer(prompt)
+        # Display results
+        st.subheader("Context Retrieved:")
+        st.text_area("Context", context, height=150)
+        st.subheader("Chatbot Response:")
+        st.write(answer)
